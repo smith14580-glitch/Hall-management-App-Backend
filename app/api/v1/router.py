@@ -1,6 +1,19 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, bookings, availability, payments, tables, customers, employees, attendance, dashboard, notifications, reports
+from app.api.v1.endpoints import (
+    auth,
+    bookings,
+    availability,
+    payments,
+    tables,
+    customers,
+    employees,
+    attendance,
+    dashboard,
+    halls,
+    notifications,
+    reports,
+)
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(auth.router)
@@ -13,5 +26,8 @@ api_router.include_router(employees.router)
 api_router.include_router(attendance.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(dashboard.router_settings)
+api_router.include_router(halls.router)
+api_router.include_router(halls.router_pricing)
 api_router.include_router(notifications.router)
 api_router.include_router(reports.router)
+api_router.include_router(reports.router_audit)

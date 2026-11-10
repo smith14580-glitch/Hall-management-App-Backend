@@ -77,6 +77,13 @@ def me(user: User = Depends(get_current_user)):
     }
 
 
+@router.post("/logout")
+def logout(user: User = Depends(get_current_user)):
+    # Stateless JWT: logout is client-side session clear. Access token
+    # expires in 15 min; refresh token rotation prevents reuse.
+    return {"success": True, "data": None, "message": "Logged out"}
+
+
 @router.post("/change-password")
 def change_password(body: ChangePasswordRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not verify_password(body.current_password, user.password_hash):

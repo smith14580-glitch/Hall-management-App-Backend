@@ -8,7 +8,7 @@ from app.db.models import User, Payment, Booking
 from app.schemas.payment import PaymentCreate, PaymentOut
 from app.services.payment import record_payment, void_payment
 
-router = APIRouter(prefix="/bookings", tags=["payments"])
+router = APIRouter(tags=["payments"])
 
 
 def _payment_dict(p: Payment) -> dict:
@@ -21,7 +21,25 @@ def _payment_dict(p: Payment) -> dict:
     }
 
 
-@router.post("/{booking_id}/payments", response_model=dict)
+@router.get("/payments/outstanding", response_model=dict)
+def outstanding_endpoint(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("super_admin")),
+):
+    rows = db.query(Booking).filter(Booking.balance_amount > 0).order_by(Booking.event_date.asc()).all()
+    return {"success": True, "data": [
+        {
+            "id": str(x.id), "booking_code": x.booking_code, "event_type": x.event_type,
+            "event_date": str(x.event_date), "slot": x.slot, "total_price": str(x.total_price),
+            "amount_paid": str(x.amount_paid), "balance_amount": str(x.balance_amount),
+            "payment_status": x.payment_status, "status": x.status,
+            "customer_name": x.customer.full_name if x.customer else None,
+            "customer_phone": x.customer.phone if x.customer else None,
+        } for x in rows
+    ]}
+
+
+@router.post("/bookings/{booking_id}/payments", response_model=dict)
 def record_payment_endpoint(
     booking_id: UUID,
     body: PaymentCreate,
@@ -37,7 +55,7 @@ def record_payment_endpoint(
     return {"success": True, "data": _payment_dict(payment), "message": "Payment recorded"}
 
 
-@router.get("/{booking_id}/payments", response_model=dict)
+@router.get("/bookings/{booking_id}/payments", response_model=dict)
 def list_payments_endpoint(
     booking_id: UUID,
     db: Session = Depends(get_db),
@@ -66,8 +84,8 @@ def receipt_endpoint(
         "success": True,
         "data": {
             "receipt_number": payment.receipt_number,
-            "booking_code": booking.booking_code,
-            "customer_id": str(booking.customer_id),
+            "booking_code": booking.booking_code if booking else None,
+            "customer_id": str(booking.customer_id) if booking else None,
             "amount": str(payment.amount),
             "payment_date": str(payment.payment_date),
             "method": payment.method,
@@ -80,31 +98,16 @@ def receipt_endpoint(
     }
 
 
-@router.get("/payments/outstanding", response_model=dict)
-def outstanding_endpoint(
-    db: Session = Depends(get_db),
-    user: User = Depends(require_role("super_admin")),
-):
-    rows = db.query(Booking).filter(Booking.balance_amount > 0).order_by(Booking.event_date.asc()).all()
-    return {"success": True, "data": [
-        {
-            "id": str(x.id), "booking_code": x.booking_code, "event_type": x.event_type,
-            "event_date": str(x.event_date), "slot": x.slot, "total_price": str(x.total_price),
-            "amount_paid": str(x.amount_paid), "balance_amount": str(x.balance_amount),
-            "payment_status": x.payment_status, "status": x.status,
-        } for x in rows
-    ]}
-
-
 @router.post("/payments/{payment_id}/void", response_model=dict)
 def void_payment_endpoint(
     payment_id: UUID,
-    reason: str = Query(..., min_length=1),
+    body: dict | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(require_role("super_admin")),
 ):
+    reason = (body or {}).get("reason") or "Not specified"
     try:
-        payment = void_payment(db, payment_id, user.id, reason)
+        payment = void_payment(db, payment_id, user.id, str(reason))
     except HTTPException:
         raise
     except Exception as e:

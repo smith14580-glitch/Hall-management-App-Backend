@@ -21,6 +21,28 @@ def dashboard_summary_endpoint(
     return {"success": True, "data": data}
 
 
+@router.get("/revenue", response_model=dict)
+def dashboard_revenue_endpoint(
+    period: str = Query("monthly", pattern="^(daily|weekly|monthly|annual)$"),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("super_admin")),
+):
+    from sqlalchemy import func, select
+    from app.db.models import Payment
+    fmt = {"daily": "%Y-%m-%d", "weekly": "%Y-%W", "monthly": "%Y-%m", "annual": "%Y"}[period]
+    rows = db.execute(
+        select(Payment.payment_date, func.sum(Payment.amount))
+        .where(Payment.is_voided == False)  # noqa: E712
+        .group_by(func.to_char(Payment.payment_date, fmt), Payment.payment_date)
+        .order_by(Payment.payment_date.asc())
+    ).all()
+    series = [
+        {"period": str(r[0]), "date": str(r[0]), "total": float(r[1]), "revenue": float(r[1]), "count": 0}
+        for r in rows
+    ]
+    return {"success": True, "data": series}
+
+
 router_settings = APIRouter(prefix="/settings", tags=["settings"])
 
 

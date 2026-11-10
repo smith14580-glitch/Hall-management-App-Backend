@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from uuid import UUID
-from datetime import date
+from datetime import date, datetime
 
 
 class NotificationOut(BaseModel):
@@ -9,7 +9,7 @@ class NotificationOut(BaseModel):
     title: str
     body: str | None
     is_read: bool
-    created_at: str
+    created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 

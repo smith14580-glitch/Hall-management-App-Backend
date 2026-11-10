@@ -5,8 +5,11 @@ from pydantic import BaseModel, Field, ConfigDict
 
 
 class BookingCreate(BaseModel):
-    customer_id: uuid.UUID
-    hall_id: uuid.UUID
+    # Either an existing customer_id, OR customer details to auto-create/link (§6.2)
+    customer_id: uuid.UUID | None = None
+    customer_name: str | None = Field(default=None, max_length=120)
+    phone: str | None = Field(default=None, max_length=20)
+    hall_id: uuid.UUID | None = None  # optional: defaults to the single hall
     event_type: str = Field(min_length=1, max_length=50)
     event_date: date
     slot: str = Field(pattern="^(day|night)$")

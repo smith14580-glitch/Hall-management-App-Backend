@@ -1,8 +1,8 @@
 from typing import Optional
 from uuid import UUID
 from datetime import date
-from sqlalchemy import select
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_role
@@ -14,6 +14,19 @@ from app.services.attendance import check_in_svc, check_out_svc, list_attendance
 router = APIRouter(prefix="/attendance", tags=["attendance"])
 
 
+def _att_dict(a: Attendance, employee: Employee | None = None) -> dict:
+    return {
+        "id": str(a.id), "employee_id": str(a.employee_id),
+        "employee_name": employee.full_name if employee else None,
+        "attendance_date": str(a.attendance_date), "status": a.status,
+        "check_in_at": a.check_in_at.isoformat() if a.check_in_at else None,
+        "check_out_at": a.check_out_at.isoformat() if a.check_out_at else None,
+        "is_late": a.is_late, "late_minutes": a.late_minutes,
+        "working_minutes": a.working_minutes, "check_in_method": a.check_in_method,
+        "notes": a.notes,
+    }
+
+
 @router.post("/check-in", response_model=dict)
 def check_in_endpoint(
     body: CheckInRequest,
@@ -21,7 +34,8 @@ def check_in_endpoint(
     user: User = Depends(get_current_user),
 ):
     attendance = check_in_svc(db, body.employee_id, date.today(), "manual", user)
-    return {"success": True, "data": AttendanceOut.model_validate(attendance), "message": "Checked in"}
+    emp = db.get(Employee, attendance.employee_id)
+    return {"success": True, "data": _att_dict(attendance, emp), "message": "Checked in"}
 
 
 @router.post("/check-out", response_model=dict)
@@ -31,7 +45,38 @@ def check_out_endpoint(
     user: User = Depends(get_current_user),
 ):
     attendance = check_out_svc(db, body.employee_id, date.today(), user)
-    return {"success": True, "data": AttendanceOut.model_validate(attendance), "message": "Checked out"}
+    emp = db.get(Employee, attendance.employee_id)
+    return {"success": True, "data": _att_dict(attendance, emp), "message": "Checked out"}
+
+
+@router.post("/mark", response_model=dict)
+def mark_attendance_endpoint(
+    body: dict,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("super_admin")),
+):
+    employee_id = body.get("employee_id")
+    att_date = body.get("attendance_date") or str(date.today())
+    status = body.get("status") or "present"
+    if status not in ("present", "absent", "leave", "half_day"):
+        raise HTTPException(status_code=422, detail={"code": "VALIDATION_ERROR", "message": "Invalid status"})
+    if not employee_id:
+        raise HTTPException(status_code=422, detail={"code": "VALIDATION_ERROR", "message": "employee_id required"})
+    emp = db.get(Employee, employee_id)
+    if not emp:
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Employee not found"})
+    existing = db.execute(
+        select(Attendance).where(Attendance.employee_id == employee_id, Attendance.attendance_date == att_date)
+    ).scalar_one_or_none()
+    if existing:
+        existing.status = status
+        row = existing
+    else:
+        row = Attendance(employee_id=employee_id, attendance_date=att_date, status=status)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {"success": True, "data": _att_dict(row, emp), "message": f"Marked {status}"}
 
 
 @router.get("/me", response_model=dict)
@@ -44,7 +89,7 @@ def my_attendance_endpoint(
 ):
     emp = db.execute(select(Employee).where(Employee.user_id == user.id)).scalar_one_or_none()
     rows, total = list_attendance_svc(db, emp.id if emp else user.id, month, skip, limit)
-    return {"success": True, "data": {"items": [AttendanceOut.model_validate(r) for r in rows], "total": total}}
+    return {"success": True, "data": [_att_dict(r, emp) for r in rows]}
 
 
 @router.get("/today", response_model=dict)
@@ -52,5 +97,20 @@ def today_attendance_endpoint(
     db: Session = Depends(get_db),
     user: User = Depends(require_role("super_admin")),
 ):
-    rows = db.query(Attendance).all()
-    return {"success": True, "data": [AttendanceOut.model_validate(r) for r in rows]}
+    rows = db.query(Attendance).filter(Attendance.attendance_date == date.today()).all()
+    employees = {e.id: e for e in db.query(Employee).all()}
+    return {"success": True, "data": [_att_dict(r, employees.get(r.employee_id)) for r in rows]}
+
+
+@router.get("", response_model=dict)
+def list_attendance_endpoint(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("super_admin")),
+    month: Optional[str] = Query(None),
+    employee_id: Optional[UUID] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
+):
+    rows, total = list_attendance_svc(db, employee_id, month, skip, limit)
+    employees = {e.id: e for e in db.query(Employee).all()}
+    return {"success": True, "data": [_att_dict(r, employees.get(r.employee_id)) for r in rows]}

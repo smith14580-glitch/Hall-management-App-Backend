@@ -20,10 +20,17 @@ router = APIRouter(prefix="/tables", tags=["tables"])
 
 @router.get("", response_model=dict)
 def list_tables_endpoint(
-    hall_id: UUID = Query(...),
+    hall_id: UUID | None = Query(None),
     db: Session = Depends(get_db),
     user: User = Depends(require_role("super_admin")),
 ):
+    if hall_id is None:
+        from sqlalchemy import select
+        from app.db.models import Hall
+        hall = db.execute(select(Hall).where(Hall.is_active == True).limit(1)).scalar_one_or_none()  # noqa: E712
+        if not hall:
+            return {"success": True, "data": []}
+        hall_id = hall.id
     rows = list_tables_svc(db, hall_id)
     return {"success": True, "data": [
         {"id": str(t.id), "table_number": t.table_number, "capacity": t.capacity, "is_active": t.is_active}
@@ -34,10 +41,17 @@ def list_tables_endpoint(
 @router.post("", response_model=dict)
 def create_table_endpoint(
     body: TableCreate,
-    hall_id: UUID = Query(...),
+    hall_id: UUID | None = Query(None),
     db: Session = Depends(get_db),
     user: User = Depends(require_role("super_admin")),
 ):
+    if hall_id is None:
+        from sqlalchemy import select
+        from app.db.models import Hall
+        hall = db.execute(select(Hall).where(Hall.is_active == True).limit(1)).scalar_one_or_none()  # noqa: E712
+        if not hall:
+            raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Hall not found"})
+        hall_id = hall.id
     t = create_table_svc(db, hall_id, body.table_number, body.capacity)
     return {"success": True, "data": {"id": str(t.id), "table_number": t.table_number, "capacity": t.capacity}}
 

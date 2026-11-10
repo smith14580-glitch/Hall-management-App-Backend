@@ -86,7 +86,11 @@ def list_attendance(db: Session, employee_id: Optional[uuid.UUID] = None, month:
     if employee_id:
         q = q.where(Attendance.employee_id == employee_id)
     if month:
-        q = q.where(Attendance.attendance_date >= f"{month}-01", Attendance.attendance_date < f"{month}-32")
+        import calendar as _cal
+        y, m = int(month[:4]), int(month[5:7])
+        first = date(y, m, 1)
+        last = date(y, m, _cal.monthrange(y, m)[1])
+        q = q.where(Attendance.attendance_date >= first, Attendance.attendance_date <= last)
     q = q.order_by(Attendance.attendance_date.desc())
     total = db.execute(select(func.count()).select_from(q.subquery())).scalar() or 0
     rows = db.execute(q.offset(skip).limit(limit)).scalars().all()

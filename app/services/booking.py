@@ -36,16 +36,40 @@ def _hall_price(db: Session, hall_id: uuid.UUID, slot: str) -> Decimal:
     return Decimal(str(hall.day_price if slot == "day" else hall.night_price))
 
 
+def _resolve_customer(db: Session, data) -> uuid.UUID:
+    """customer_id given → use it. Else phone given → link existing or create (§6.2)."""
+    if data.customer_id:
+        cust = db.get(Customer, data.customer_id)
+        if not cust:
+            raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Customer not found"})
+        return cust.id
+    if not data.phone or not (data.customer_name or data.phone):
+        raise HTTPException(status_code=422, detail={"code": "VALIDATION_ERROR", "message": "customer_id or customer_name + phone required"})
+    cust = db.execute(select(Customer).where(Customer.phone == data.phone)).scalar_one_or_none()
+    if cust:
+        return cust.id
+    cust = Customer(full_name=data.customer_name or data.phone, phone=data.phone)
+    db.add(cust)
+    db.flush()
+    return cust.id
+
+
 def create_booking(db: Session, data, created_by: uuid.UUID) -> Booking:
-    hall = db.get(Hall, data.hall_id)
+    # Hall: explicit id, else the single seeded hall
+    if data.hall_id:
+        hall = db.get(Hall, data.hall_id)
+    else:
+        hall = db.execute(select(Hall).where(Hall.is_active == True).limit(1)).scalar_one_or_none()  # noqa: E712
     if not hall:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Hall not found"})
+
+    customer_id = _resolve_customer(db, data)
 
     # Conflict safeguard: lock any active booking for same hall/date/slot
     existing = db.execute(
         select(Booking.id)
         .where(
-            Booking.hall_id == data.hall_id,
+            Booking.hall_id == hall.id,
             Booking.event_date == data.event_date,
             Booking.slot == data.slot,
             Booking.status.in_(["pending", "confirmed"]),
@@ -56,7 +80,7 @@ def create_booking(db: Session, data, created_by: uuid.UUID) -> Booking:
         raise conflict("BOOKING_CONFLICT", "This date and slot are already booked.")
 
     # Snapshot price
-    total_price = _hall_price(db, data.hall_id, data.slot)
+    total_price = Decimal(str(hall.day_price if data.slot == "day" else hall.night_price))
 
     # Advance default
     advance_percent = Decimal(_get_setting(db, "default_advance_percent", "50"))
@@ -67,8 +91,8 @@ def create_booking(db: Session, data, created_by: uuid.UUID) -> Booking:
     booking = booking_crud.create_booking_row(
         db,
         booking_code=booking_code,
-        customer_id=data.customer_id,
-        hall_id=data.hall_id,
+        customer_id=customer_id,
+        hall_id=hall.id,
         event_type=data.event_type,
         event_date=data.event_date,
         slot=data.slot,
