@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     CORS_ORIGINS: str = "http://localhost:3000"
     ENVIRONMENT: str = "development"
+    ENABLE_DOCS: bool = True
     FIRST_ADMIN_NAME: str = "Dev Admin"
     FIRST_ADMIN_PHONE: str = "03000000000"
     FIRST_ADMIN_PASSWORD: str = "Admin1234"
