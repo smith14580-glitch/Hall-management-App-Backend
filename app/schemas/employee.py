@@ -7,6 +7,7 @@ class EmployeeCreate(BaseModel):
     full_name: str = Field(min_length=1, max_length=120)
     phone: str = Field(min_length=1, max_length=20)
     role: str = Field(pattern="^(manager|reception|waiter|cook|cleaner|security|other)$")
+    password: str | None = Field(default=None, min_length=8)
     cnic: str | None = Field(max_length=15, default=None)
     address: str | None = None
     hire_date: date | None = None
