@@ -21,3 +21,15 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Neon (and other hosts) give plain postgres:// or postgresql:// URLs;
+# SQLAlchemy needs the psycopg driver explicitly. Normalize here so any
+# of the three spellings works when pasted into hosting env vars.
+if settings.DATABASE_URL.startswith("postgresql://"):
+    settings.DATABASE_URL = settings.DATABASE_URL.replace(
+        "postgresql://", "postgresql+psycopg://", 1
+    )
+elif settings.DATABASE_URL.startswith("postgres://"):
+    settings.DATABASE_URL = settings.DATABASE_URL.replace(
+        "postgres://", "postgresql+psycopg://", 1
+    )
