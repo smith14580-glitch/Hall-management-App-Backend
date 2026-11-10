@@ -29,17 +29,27 @@ def dashboard_revenue_endpoint(
 ):
     from sqlalchemy import func, select
     from app.db.models import Payment
+    from datetime import date as _date
+
     fmt = {"daily": "%Y-%m-%d", "weekly": "%Y-%W", "monthly": "%Y-%m", "annual": "%Y"}[period]
+    today = _date.today()
     rows = db.execute(
         select(Payment.payment_date, func.sum(Payment.amount))
         .where(Payment.is_voided == False)  # noqa: E712
         .group_by(func.to_char(Payment.payment_date, fmt), Payment.payment_date)
         .order_by(Payment.payment_date.asc())
     ).all()
+
+    # Frontend expects RevenuePoint { label, revenue }; keep the most
+    # recent ~12 buckets so the chart stays readable.
+    buckets: dict[str, float] = {}
+    for payment_date, total in rows:
+        key = payment_date.strftime(fmt)
+        buckets[key] = float(total)
     series = [
-        {"period": str(r[0]), "date": str(r[0]), "total": float(r[1]), "revenue": float(r[1]), "count": 0}
-        for r in rows
-    ]
+        {"label": key, "revenue": value, "date": key, "total": value, "count": 0}
+        for key, value in sorted(buckets.items())
+    ][-12:]
     return {"success": True, "data": series}
 
 
