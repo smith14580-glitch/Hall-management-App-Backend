@@ -14,7 +14,7 @@ def _hall_dict(h: Hall) -> dict:
     return {
         "id": str(h.id), "name": h.name,
         "capacity_guests": h.capacity_guests, "capacity_tables": h.capacity_tables,
-        "day_price": str(h.day_price), "night_price": str(h.night_price),
+        "day_price": float(h.day_price), "night_price": float(h.night_price),
         "is_active": h.is_active,
     }
 
@@ -71,6 +71,6 @@ def current_pricing(
         "success": True,
         "data": {
             "hall_id": str(h.id), "hall_name": h.name,
-            "day_price": str(h.day_price), "night_price": str(h.night_price),
+            "day_price": float(h.day_price), "night_price": float(h.night_price),
         },
     }

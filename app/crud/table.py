@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.models import Table, EventTableAllocation, Booking, Hall
@@ -26,6 +26,16 @@ def deactivate_table(db: Session, table_id: uuid.UUID) -> Optional[Table]:
     if not t:
         return None
     t.is_active = False
+    db.add(t)
+    db.commit()
+    db.refresh(t)
+    return t
+
+def activate_table(db: Session, table_id: uuid.UUID) -> Optional[Table]:
+    t = db.get(Table, table_id)
+    if not t:
+        return None
+    t.is_active = True
     db.add(t)
     db.commit()
     db.refresh(t)

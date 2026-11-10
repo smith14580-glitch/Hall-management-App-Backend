@@ -1,14 +1,11 @@
-from datetime import date
-from decimal import Decimal
-from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import validation_error
 from app.crud import payment as payment_crud
-from app.db.models import Payment, Booking, User
+from app.db.models import Payment, Booking
 
 
 def record_payment(db: Session, booking_id: UUID, data, received_by: UUID) -> Payment:

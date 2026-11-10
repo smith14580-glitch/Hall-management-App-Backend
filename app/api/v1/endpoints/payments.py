@@ -1,11 +1,11 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.deps import require_role
 from app.db.session import get_db
 from app.db.models import User, Payment, Booking
-from app.schemas.payment import PaymentCreate, PaymentOut
+from app.schemas.payment import PaymentCreate
 from app.services.payment import record_payment, void_payment
 
 router = APIRouter(tags=["payments"])
@@ -13,7 +13,7 @@ router = APIRouter(tags=["payments"])
 
 def _payment_dict(p: Payment) -> dict:
     return {
-        "id": str(p.id), "booking_id": str(p.booking_id), "amount": str(p.amount),
+        "id": str(p.id), "booking_id": str(p.booking_id), "amount": float(p.amount),
         "payment_date": str(p.payment_date), "method": p.method, "reference": p.reference,
         "received_by": str(p.received_by), "receipt_number": p.receipt_number,
         "is_voided": p.is_voided, "void_reason": p.void_reason, "notes": p.notes,
@@ -30,8 +30,8 @@ def outstanding_endpoint(
     return {"success": True, "data": [
         {
             "id": str(x.id), "booking_code": x.booking_code, "event_type": x.event_type,
-            "event_date": str(x.event_date), "slot": x.slot, "total_price": str(x.total_price),
-            "amount_paid": str(x.amount_paid), "balance_amount": str(x.balance_amount),
+            "event_date": str(x.event_date), "slot": x.slot, "total_price": float(x.total_price),
+            "amount_paid": float(x.amount_paid), "balance_amount": float(x.balance_amount),
             "payment_status": x.payment_status, "status": x.status,
             "customer_name": x.customer.full_name if x.customer else None,
             "customer_phone": x.customer.phone if x.customer else None,
@@ -86,7 +86,7 @@ def receipt_endpoint(
             "receipt_number": payment.receipt_number,
             "booking_code": booking.booking_code if booking else None,
             "customer_id": str(booking.customer_id) if booking else None,
-            "amount": str(payment.amount),
+            "amount": float(payment.amount),
             "payment_date": str(payment.payment_date),
             "method": payment.method,
             "reference": payment.reference,

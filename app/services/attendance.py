@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from uuid import UUID
 from datetime import date
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.crud import attendance as attendance_crud

@@ -1,17 +1,15 @@
 import uuid
 from datetime import date, datetime, timezone
 from decimal import Decimal
-from typing import Optional
 
-from fastapi import HTTPException, status
-from sqlalchemy import select, text, func
+from fastapi import HTTPException
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import conflict
-from app.core.config import settings
 from app.crud import booking as booking_crud
 from app.crud.notification import create_notification
-from app.db.models import Booking, Customer, Hall, ApplicationSetting, User
+from app.db.models import Booking, Customer, Hall, ApplicationSetting
 
 
 def _get_setting(db: Session, key: str, default: str) -> str:
@@ -160,7 +158,6 @@ def cancel_booking(db: Session, booking: Booking, cancelled_by: uuid.UUID, reaso
 def complete_booking(db: Session, booking: Booking) -> Booking:
     if booking.status != "confirmed":
         raise HTTPException(status_code=400, detail={"code": "VALIDATION_ERROR", "message": "Only confirmed bookings can be completed"})
-    from datetime import datetime, timezone
     booking.status = "completed"
     booking.completed_at = datetime.now(timezone.utc)
     db.add(booking)

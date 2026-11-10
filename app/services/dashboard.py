@@ -1,8 +1,8 @@
 from datetime import date
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
-from app.db.models import Booking, Payment, Customer, Employee, Attendance, ApplicationSetting, Hall
+from app.db.models import Booking, Payment, Customer, Employee, Attendance, ApplicationSetting
 
 
 def get_setting(db: Session, key: str) -> str | None:

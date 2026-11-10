@@ -1,9 +1,8 @@
 import uuid
-from datetime import date
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.db.models import Payment, Booking

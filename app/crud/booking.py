@@ -2,10 +2,10 @@ import uuid
 from datetime import date
 from typing import Optional
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session, joinedload
 
-from app.db.models import Booking, Customer, Hall, User
+from app.db.models import Booking, Customer
 
 
 def get_booking(db: Session, booking_id: uuid.UUID) -> Optional[Booking]:

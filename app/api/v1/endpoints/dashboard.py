@@ -1,13 +1,11 @@
-from typing import Optional
-from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.deps import require_role
 from app.db.session import get_db
-from app.db.models import User, ApplicationSetting
-from app.schemas.dashboard import SettingUpdate, SettingOut
-from app.services.dashboard import dashboard_summary, list_settings, get_setting, set_setting
+from app.db.models import User
+from app.schemas.dashboard import SettingUpdate
+from app.services.dashboard import dashboard_summary, list_settings, set_setting
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -32,7 +30,7 @@ def dashboard_revenue_endpoint(
     from datetime import date as _date
 
     fmt = {"daily": "%Y-%m-%d", "weekly": "%Y-%W", "monthly": "%Y-%m", "annual": "%Y"}[period]
-    today = _date.today()
+    _date.today()
     rows = db.execute(
         select(Payment.payment_date, func.sum(Payment.amount))
         .where(Payment.is_voided == False)  # noqa: E712

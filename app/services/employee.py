@@ -1,10 +1,10 @@
 from uuid import UUID
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.crud import employee as employee_crud
 from app.db.models import Employee
-from app.schemas.employee import EmployeeCreate, EmployeeOut
+from app.schemas.employee import EmployeeCreate
 
 
 def create_employee_svc(db: Session, data: EmployeeCreate) -> Employee:
@@ -23,6 +23,18 @@ def create_employee_svc(db: Session, data: EmployeeCreate) -> Employee:
 
 def get_employee_svc(db: Session, employee_id: UUID) -> Employee:
     e = employee_crud.get_employee(db, employee_id)
+    if not e:
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Employee not found"})
+    return e
+
+def deactivate_employee_svc(db: Session, employee_id: UUID) -> Employee:
+    e = employee_crud.deactivate_employee(db, employee_id)
+    if not e:
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Employee not found"})
+    return e
+
+def activate_employee_svc(db: Session, employee_id: UUID) -> Employee:
+    e = employee_crud.activate_employee(db, employee_id)
     if not e:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Employee not found"})
     return e

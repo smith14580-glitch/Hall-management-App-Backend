@@ -1,9 +1,9 @@
 from uuid import UUID
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.crud import table as table_crud
-from app.db.models import Table, EventTableAllocation, Booking
+from app.db.models import Table, Booking
 
 
 def list_tables_svc(db: Session, hall_id: UUID):
@@ -20,6 +20,12 @@ def deactivate_table_svc(db: Session, table_id: UUID):
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Table not found"})
     return t
 
+def activate_table_svc(db: Session, table_id: UUID):
+    t = table_crud.activate_table(db, table_id)
+    if not t:
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Table not found"})
+    return t
+
 
 def get_allocations_svc(db: Session, booking_id: UUID):
     booking = db.get(Booking, booking_id)
@@ -28,7 +34,7 @@ def get_allocations_svc(db: Session, booking_id: UUID):
     rows = table_crud.get_allocation_for_booking(db, booking_id)
     return [
         {
-            "id": str(r.id), "table_id": str(r.table_id), "table_number": r.table.table_number,
+            "id": str(r.id), "booking_id": str(booking_id), "table_id": str(r.table_id), "table_number": r.table.table_number,
             "capacity": r.table.capacity,
         } for r in rows
     ]
@@ -41,7 +47,7 @@ def allocate_tables_svc(db: Session, booking_id: UUID, table_ids: list[UUID], cr
         raise HTTPException(status_code=422, detail={"code": "VALIDATION_ERROR", "message": str(e)})
     return [
         {
-            "id": str(r.id), "table_id": str(r.table_id), "table_number": r.table.table_number,
+            "id": str(r.id), "booking_id": str(booking_id), "table_id": str(r.table_id), "table_number": r.table.table_number,
             "capacity": r.table.capacity,
         } for r in rows
     ]
@@ -54,7 +60,7 @@ def remove_allocation_svc(db: Session, booking_id: UUID, table_id: UUID, created
         raise HTTPException(status_code=400, detail={"code": "VALIDATION_ERROR", "message": str(e)})
     return [
         {
-            "id": str(r.id), "table_id": str(r.table_id), "table_number": r.table.table_number,
+            "id": str(r.id), "booking_id": str(booking_id), "table_id": str(r.table_id), "table_number": r.table.table_number,
             "capacity": r.table.capacity,
         } for r in rows
     ]

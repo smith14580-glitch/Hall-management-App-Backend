@@ -1,10 +1,10 @@
 from uuid import UUID
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.crud import customer as customer_crud
 from app.db.models import Customer
-from app.schemas.customer import CustomerCreate, CustomerOut
+from app.schemas.customer import CustomerCreate
 
 
 def create_customer_svc(db: Session, data: CustomerCreate) -> Customer:

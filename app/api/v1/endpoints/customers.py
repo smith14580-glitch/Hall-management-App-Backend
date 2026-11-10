@@ -72,8 +72,8 @@ def customer_bookings_endpoint(
         {
             "id": str(b.id), "booking_code": b.booking_code, "event_type": b.event_type,
             "event_date": str(b.event_date), "slot": b.slot, "guest_count": b.guest_count,
-            "total_price": str(b.total_price), "amount_paid": str(b.amount_paid),
-            "balance_amount": str(b.balance_amount), "payment_status": b.payment_status,
+            "total_price": float(b.total_price), "amount_paid": float(b.amount_paid),
+            "balance_amount": float(b.balance_amount), "payment_status": b.payment_status,
             "status": b.status,
         } for b in rows
     ]

@@ -1,8 +1,8 @@
 import uuid
-from typing import Optional, List
-from sqlalchemy import select, func, and_
+from typing import Optional
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
-from app.db.models import Notification, User, Booking
+from app.db.models import Notification
 
 
 def create_notification(db: Session, user_id: uuid.UUID, type: str, title: str, body: str | None = None, related_booking_id: uuid.UUID | None = None, related_employee_id: uuid.UUID | None = None) -> Notification:

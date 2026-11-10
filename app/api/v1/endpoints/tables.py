@@ -4,19 +4,25 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import require_role
 from app.db.session import get_db
-from app.db.models import User
-from app.schemas.table import TableCreate, TableOut, TableAllocate
+from app.db.models import User, Table as TableModel
+from app.schemas.table import TableCreate
 from app.services.table import (
     list_tables_svc,
     create_table_svc,
     deactivate_table_svc,
-    get_allocations_svc,
-    allocate_tables_svc,
-    remove_allocation_svc,
+    activate_table_svc,
 )
 
 router = APIRouter(prefix="/tables", tags=["tables"])
 
+def _table_dict(t) -> dict:
+    return {
+        "id": str(t.id),
+        "hall_id": str(t.hall_id),
+        "table_number": t.table_number,
+        "capacity": t.capacity,
+        "is_active": t.is_active,
+    }
 
 @router.get("", response_model=dict)
 def list_tables_endpoint(
@@ -32,11 +38,7 @@ def list_tables_endpoint(
             return {"success": True, "data": []}
         hall_id = hall.id
     rows = list_tables_svc(db, hall_id)
-    return {"success": True, "data": [
-        {"id": str(t.id), "table_number": t.table_number, "capacity": t.capacity, "is_active": t.is_active}
-        for t in rows
-    ]}
-
+    return {"success": True, "data": [_table_dict(t) for t in rows]}
 
 @router.post("", response_model=dict)
 def create_table_endpoint(
@@ -53,8 +55,7 @@ def create_table_endpoint(
             raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Hall not found"})
         hall_id = hall.id
     t = create_table_svc(db, hall_id, body.table_number, body.capacity)
-    return {"success": True, "data": {"id": str(t.id), "table_number": t.table_number, "capacity": t.capacity}}
-
+    return {"success": True, "data": _table_dict(t), "message": "Table created"}
 
 @router.post("/{table_id}/deactivate", response_model=dict)
 def deactivate_table_endpoint(
@@ -63,8 +64,7 @@ def deactivate_table_endpoint(
     user: User = Depends(require_role("super_admin")),
 ):
     t = deactivate_table_svc(db, table_id)
-    return {"success": True, "data": {"id": str(t.id), "is_active": t.is_active}}
-
+    return {"success": True, "data": _table_dict(t), "message": "Table deactivated"}
 
 @router.post("/{table_id}/activate", response_model=dict)
 def activate_table_endpoint(
@@ -72,8 +72,23 @@ def activate_table_endpoint(
     db: Session = Depends(get_db),
     user: User = Depends(require_role("super_admin")),
 ):
-    t = deactivate_table_svc(db, table_id)
-    t.is_active = True
+    t = activate_table_svc(db, table_id)
+    return {"success": True, "data": _table_dict(t), "message": "Table activated"}
+
+@router.patch("/{table_id}", response_model=dict)
+def update_table_endpoint(
+    table_id: UUID,
+    body: dict,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("super_admin")),
+):
+    t = db.get(TableModel, table_id)
+    if not t:
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Table not found"})
+    for key in ("table_number", "capacity", "is_active"):
+        if key in body and body[key] is not None:
+            setattr(t, key, body[key])
     db.add(t)
     db.commit()
-    return {"success": True, "data": {"id": str(t.id), "is_active": t.is_active}}
+    db.refresh(t)
+    return {"success": True, "data": _table_dict(t), "message": "Table updated"}

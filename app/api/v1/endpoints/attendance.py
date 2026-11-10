@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user, require_role
 from app.db.session import get_db
 from app.db.models import User, Attendance, Employee
-from app.schemas.attendance import CheckInRequest, CheckOutRequest, AttendanceOut
+from app.schemas.attendance import CheckInRequest, CheckOutRequest
 from app.services.attendance import check_in_svc, check_out_svc, list_attendance_svc
 
 router = APIRouter(prefix="/attendance", tags=["attendance"])
@@ -56,23 +56,32 @@ def mark_attendance_endpoint(
     user: User = Depends(require_role("super_admin")),
 ):
     employee_id = body.get("employee_id")
-    att_date = body.get("attendance_date") or str(date.today())
+    att_date_raw = body.get("attendance_date") or str(date.today())
+    try:
+        att_date = date.fromisoformat(str(att_date_raw))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail={"code": "VALIDATION_ERROR", "message": "Invalid attendance_date"})
     status = body.get("status") or "present"
     if status not in ("present", "absent", "leave", "half_day"):
         raise HTTPException(status_code=422, detail={"code": "VALIDATION_ERROR", "message": "Invalid status"})
     if not employee_id:
         raise HTTPException(status_code=422, detail={"code": "VALIDATION_ERROR", "message": "employee_id required"})
-    emp = db.get(Employee, employee_id)
+    from uuid import UUID as _UUID
+    try:
+        emp_uuid = _UUID(str(employee_id))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail={"code": "VALIDATION_ERROR", "message": "Invalid employee_id"})
+    emp = db.get(Employee, emp_uuid)
     if not emp:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Employee not found"})
     existing = db.execute(
-        select(Attendance).where(Attendance.employee_id == employee_id, Attendance.attendance_date == att_date)
+        select(Attendance).where(Attendance.employee_id == emp_uuid, Attendance.attendance_date == att_date)
     ).scalar_one_or_none()
     if existing:
         existing.status = status
         row = existing
     else:
-        row = Attendance(employee_id=employee_id, attendance_date=att_date, status=status)
+        row = Attendance(employee_id=emp_uuid, attendance_date=att_date, status=status)
     db.add(row)
     db.commit()
     db.refresh(row)

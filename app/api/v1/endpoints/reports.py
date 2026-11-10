@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
@@ -11,7 +11,8 @@ router_audit = APIRouter(prefix="/audit-logs", tags=["audit"])
 
 
 def _csv(rows: list[dict], headers: list[str]) -> str:
-    import csv, io
+    import csv
+    import io
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(headers)
@@ -68,7 +69,7 @@ def revenue_report(
         q = q.filter(Payment.payment_date <= date_to)
     rows = q.all()
     total = sum(float(p.amount) for p in rows)
-    return {"success": True, "data": {"period": period, "total_revenue": total, "count": len(rows)}}
+    return {"success": True, "data": [{"period": period, "total_revenue": total, "payments_count": len(rows)}]}
 
 
 @router.get("/outstanding", response_model=dict)
@@ -97,7 +98,7 @@ def attendance_report(
     db: Session = Depends(get_db),
     user: User = Depends(require_role("super_admin")),
 ):
-    from app.db.models import Attendance, Employee
+    from app.db.models import Employee
     from datetime import date as _date
     q = db.query(Attendance)
     if month:

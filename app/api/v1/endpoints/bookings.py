@@ -5,10 +5,10 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_role
+from app.core.deps import require_role
 from app.db.session import get_db
-from app.db.models import User, Booking, Customer, Hall
-from app.schemas.booking import BookingCreate, BookingOut
+from app.db.models import User, Booking
+from app.schemas.booking import BookingCreate
 from app.schemas.table import TableAllocate
 from app.services.booking import create_booking, list_bookings, get_booking, confirm_booking, cancel_booking, complete_booking
 from app.services.table import get_allocations_svc, allocate_tables_svc, remove_allocation_svc
@@ -23,8 +23,8 @@ def _booking_dict(b: Booking) -> dict:
         "id": str(b.id), "booking_code": b.booking_code, "event_type": b.event_type,
         "event_date": str(b.event_date), "slot": b.slot, "guest_count": b.guest_count,
         "tables_required": b.tables_required, "special_instructions": b.special_instructions,
-        "total_price": str(b.total_price), "advance_amount": str(b.advance_amount),
-        "amount_paid": str(b.amount_paid), "balance_amount": str(b.balance_amount),
+        "total_price": float(b.total_price), "advance_amount": float(b.advance_amount),
+        "amount_paid": float(b.amount_paid), "balance_amount": float(b.balance_amount),
         "payment_status": b.payment_status, "status": b.status,
         "customer_id": str(b.customer_id), "customer_name": cust.full_name if cust else None,
         "customer_phone": cust.phone if cust else None,
@@ -33,18 +33,19 @@ def _booking_dict(b: Booking) -> dict:
     }
 
 
-@router.post("", response_model=BookingOut, status_code=201)
+@router.post("", response_model=dict, status_code=201)
 def create_booking_endpoint(
     body: BookingCreate,
     db: Session = Depends(get_db),
     user: User = Depends(require_role("super_admin")),
 ):
     try:
-        return create_booking(db, body, user.id)
+        booking = create_booking(db, body, user.id)
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=409, detail={"code": "BOOKING_CONFLICT", "message": str(e)})
+    return {"success": True, "data": _booking_dict(booking), "message": "Booking created"}
 
 
 @router.get("", response_model=dict)
