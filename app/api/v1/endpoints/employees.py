@@ -5,11 +5,35 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import require_role
 from app.db.session import get_db
-from app.db.models import User
+from app.db.models import User, SalaryRecord
 from app.schemas.employee import EmployeeCreate, EmployeeOut
+from app.schemas.salary import SalaryCreate
 from app.services.employee import create_employee_svc, get_employee_svc, list_employees_svc, deactivate_employee_svc, activate_employee_svc
 
 router = APIRouter(prefix="/employees", tags=["employees"])
+
+
+def _salary_status(base: float, paid: float) -> str:
+    if base > 0 and paid >= base:
+        return "paid"
+    if paid > 0:
+        return "partial"
+    return "pending"
+
+
+def _salary_dict(r: SalaryRecord) -> dict:
+    return {
+        "id": str(r.id),
+        "employee_id": str(r.employee_id),
+        "month": r.month,
+        "base_amount": float(r.base_amount or 0),
+        "paid_amount": float(r.paid_amount or 0),
+        "balance": float((r.base_amount or 0) - (r.paid_amount or 0)),
+        "payment_date": str(r.payment_date) if r.payment_date else None,
+        "status": r.status,
+        "notes": r.notes,
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+    }
 
 
 @router.post("", response_model=dict)
@@ -89,3 +113,57 @@ def activate_employee_endpoint(
 ):
     e = activate_employee_svc(db, employee_id)
     return {"success": True, "data": EmployeeOut.model_validate(e), "message": "Employee activated"}
+
+
+@router.get("/{employee_id}/salary", response_model=dict)
+def list_employee_salary_endpoint(
+    employee_id: UUID,
+    month: Optional[str] = Query(None, pattern=r"^\d{4}-\d{2}$"),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("super_admin")),
+):
+    get_employee_svc(db, employee_id)
+    q = db.query(SalaryRecord).filter(SalaryRecord.employee_id == employee_id)
+    if month:
+        q = q.filter(SalaryRecord.month == month)
+    rows = q.order_by(SalaryRecord.month.desc()).all()
+    return {"success": True, "data": [_salary_dict(r) for r in rows]}
+
+
+@router.post("/{employee_id}/salary", response_model=dict)
+def upsert_employee_salary_endpoint(
+    employee_id: UUID,
+    body: SalaryCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("super_admin")),
+):
+    get_employee_svc(db, employee_id)
+    row = (
+        db.query(SalaryRecord)
+        .filter(SalaryRecord.employee_id == employee_id, SalaryRecord.month == body.month)
+        .first()
+    )
+    base = float(body.base_amount)
+    paid = float(body.paid_amount or 0)
+    if row is None:
+        row = SalaryRecord(
+            employee_id=employee_id,
+            month=body.month,
+            base_amount=body.base_amount,
+            paid_amount=body.paid_amount or 0,
+            payment_date=body.payment_date,
+            notes=body.notes,
+            status=_salary_status(base, paid),
+            created_by=user.id,
+        )
+        db.add(row)
+    else:
+        row.base_amount = body.base_amount
+        row.paid_amount = body.paid_amount or 0
+        row.payment_date = body.payment_date
+        row.notes = body.notes
+        row.status = _salary_status(base, paid)
+        db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {"success": True, "data": _salary_dict(row), "message": "Salary record saved"}

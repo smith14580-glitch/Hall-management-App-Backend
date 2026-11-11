@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from uuid import UUID
 from datetime import date, datetime
 
@@ -9,6 +9,10 @@ class CheckInRequest(BaseModel):
 
 class CheckOutRequest(BaseModel):
     employee_id: UUID | None = None
+
+class ScanRequest(BaseModel):
+    employee_code: str = Field(min_length=1, max_length=40)
+    action: str = Field(default="auto", pattern="^(auto|check-in|check-out)$")
 
 
 class AttendanceOut(BaseModel):

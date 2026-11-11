@@ -274,3 +274,23 @@ class ApplicationSetting(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class SalaryRecord(Base):
+    __tablename__ = "salary_records"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    employee_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False, index=True)
+    month: Mapped[str] = mapped_column(String(7), nullable=False)
+    base_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0)
+    paid_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0)
+    payment_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("employee_id", "month", name="uq_salary_employee_month"),
+        CheckConstraint("status IN ('pending','partial','paid')", name="ck_salary_status"),
+    )

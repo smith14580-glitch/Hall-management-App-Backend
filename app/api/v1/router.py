@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     halls,
     notifications,
     reports,
+    salary,
 )
 
 api_router = APIRouter(prefix="/api/v1")
@@ -31,3 +32,4 @@ api_router.include_router(halls.router_pricing)
 api_router.include_router(notifications.router)
 api_router.include_router(reports.router)
 api_router.include_router(reports.router_audit)
+api_router.include_router(salary.router)

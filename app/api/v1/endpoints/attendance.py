@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user, require_role
 from app.db.session import get_db
 from app.db.models import User, Attendance, Employee
-from app.schemas.attendance import CheckInRequest, CheckOutRequest
+from app.schemas.attendance import CheckInRequest, CheckOutRequest, ScanRequest
 from app.services.attendance import check_in_svc, check_out_svc, list_attendance_svc
 
 router = APIRouter(prefix="/attendance", tags=["attendance"])
@@ -47,6 +47,48 @@ def check_out_endpoint(
     attendance = check_out_svc(db, body.employee_id, date.today(), user)
     emp = db.get(Employee, attendance.employee_id)
     return {"success": True, "data": _att_dict(attendance, emp), "message": "Checked out"}
+
+
+@router.post("/scan", response_model=dict)
+def scan_attendance_endpoint(
+    body: ScanRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("super_admin")),
+):
+    code = body.employee_code.strip()
+    emp = db.execute(select(Employee).where(Employee.employee_code == code)).scalar_one_or_none()
+    if not emp:
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Employee code not found"})
+    if not emp.is_active:
+        raise HTTPException(status_code=400, detail={"code": "VALIDATION_ERROR", "message": "Employee is inactive"})
+
+    today = date.today()
+    existing = db.execute(
+        select(Attendance).where(Attendance.employee_id == emp.id, Attendance.attendance_date == today)
+    ).scalar_one_or_none()
+
+    action = body.action
+    if action == "auto":
+        if existing is None:
+            action = "check-in"
+        elif existing.check_in_at and not existing.check_out_at:
+            action = "check-out"
+        else:
+            return {
+                "success": True,
+                "data": _att_dict(existing, emp),
+                "message": "Aaj ki attendance mukammal hai (check-in aur check-out dono ho chuke).",
+                "action": "complete",
+            }
+
+    if action == "check-in":
+        row = check_in_svc(db, emp.id, today, "scan", user)
+        message = f"{emp.full_name} — check-in ho gaya."
+    else:
+        row = check_out_svc(db, emp.id, today, user)
+        message = f"{emp.full_name} — check-out ho gaya."
+
+    return {"success": True, "data": _att_dict(row, emp), "message": message, "action": action}
 
 
 @router.post("/mark", response_model=dict)
