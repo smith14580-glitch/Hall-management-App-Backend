@@ -188,6 +188,49 @@ class Payment(Base):
     )
 
 
+class Refund(Base):
+    __tablename__ = "refunds"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    booking_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("bookings.id", ondelete="RESTRICT"), nullable=False, index=True)
+    credit_note_no: Mapped[str] = mapped_column(String(30), unique=True, nullable=False, index=True)
+    amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    refund_date: Mapped[date] = mapped_column(Date, nullable=False, default=date.today, index=True)
+    method: Mapped[str] = mapped_column(String(30), nullable=False)
+    reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="ck_refunds_amount"),
+        CheckConstraint("method IN ('cash','bank_transfer','jazzcash','easypaisa','cheque','other')", name="ck_refunds_method"),
+    )
+
+
+class Expense(Base):
+    __tablename__ = "expenses"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    category: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    vendor: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    expense_date: Mapped[date] = mapped_column(Date, nullable=False, default=date.today, index=True)
+    reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="ck_expenses_amount"),
+        CheckConstraint(
+            "category IN ('catering','decoration','staff','utilities','maintenance','marketing','supplies','other')",
+            name="ck_expenses_category",
+        ),
+    )
+
+
 class Table(Base):
     __tablename__ = "tables"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
