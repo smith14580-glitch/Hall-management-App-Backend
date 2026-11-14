@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import conflict
 from app.crud import booking as booking_crud
+from app.crud import payment as payment_crud
 from app.crud.notification import create_notification
 from app.db.models import Booking, Customer, Hall, ApplicationSetting
 
@@ -83,6 +84,10 @@ def create_booking(db: Session, data, created_by: uuid.UUID) -> Booking:
     # Advance default
     advance_percent = Decimal(_get_setting(db, "default_advance_percent", "50"))
     advance_amount = data.advance_amount if data.advance_amount is not None else (total_price * advance_percent / 100)
+    if advance_amount < 0:
+        advance_amount = Decimal("0")
+    if advance_amount > total_price:
+        advance_amount = total_price
 
     booking_code = _next_booking_code(db, data.event_date)
 
@@ -105,6 +110,20 @@ def create_booking(db: Session, data, created_by: uuid.UUID) -> Booking:
         status="pending",
         created_by=created_by,
     )
+    db.flush()
+    if advance_amount and advance_amount > 0:
+        payment_crud.create_payment_row(
+            db,
+            booking_id=booking.id,
+            amount=advance_amount,
+            payment_date=date.today(),
+            method="advance",
+            reference=None,
+            received_by=created_by,
+            receipt_number=payment_crud.next_receipt_number(db),
+            notes="Advance received at booking creation",
+        )
+        payment_crud.recompute_booking_totals(db, booking)
     db.commit()
     db.refresh(booking)
     create_notification(

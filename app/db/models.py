@@ -183,7 +183,7 @@ class Payment(Base):
 
     __table_args__ = (
         CheckConstraint("amount > 0", name="ck_payments_amount"),
-        CheckConstraint("method IN ('cash','bank_transfer','jazzcash','easypaisa','cheque','other')", name="ck_payments_method"),
+        CheckConstraint("method IN ('cash','bank_transfer','jazzcash','easypaisa','cheque','other','advance')", name="ck_payments_method"),
     )
 
 
