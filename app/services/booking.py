@@ -146,6 +146,7 @@ def confirm_booking(db: Session, booking: Booking) -> Booking:
     if booking.status != "pending":
         raise HTTPException(status_code=400, detail={"code": "VALIDATION_ERROR", "message": "Only pending bookings can be confirmed"})
     booking.status = "confirmed"
+    booking.confirmed_at = datetime.now(timezone.utc)
     db.add(booking)
     db.commit()
     db.refresh(booking)

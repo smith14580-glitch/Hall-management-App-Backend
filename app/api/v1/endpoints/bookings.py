@@ -30,6 +30,11 @@ def _booking_dict(b: Booking) -> dict:
         "customer_phone": cust.phone if cust else None,
         "hall_id": str(b.hall_id), "hall_name": hall.name if hall else None,
         "created_by": str(b.created_by),
+        "cancelled_reason": b.cancelled_reason,
+        "confirmed_at": b.confirmed_at.isoformat() if b.confirmed_at else None,
+        "completed_at": b.completed_at.isoformat() if b.completed_at else None,
+        "created_at": b.created_at.isoformat() if b.created_at else None,
+        "updated_at": b.updated_at.isoformat() if b.updated_at else None,
     }
 
 
