@@ -56,6 +56,12 @@ def _resolve_customer(db: Session, data) -> uuid.UUID:
         raise HTTPException(status_code=422, detail={"code": "VALIDATION_ERROR", "message": "customer_id or customer_name + phone required"})
     cust = db.execute(select(Customer).where(Customer.phone == data.phone)).scalar_one_or_none()
     if cust:
+        # Keep the customer record in sync with the name the manager typed.
+        typed_name = (data.customer_name or "").strip()
+        if typed_name and typed_name != cust.full_name:
+            cust.full_name = typed_name
+            db.add(cust)
+            db.flush()
         return cust.id
     cust = Customer(full_name=data.customer_name or data.phone, phone=data.phone)
     db.add(cust)
@@ -73,6 +79,9 @@ def create_booking(db: Session, data, created_by: uuid.UUID) -> Booking:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Hall not found"})
 
     customer_id = _resolve_customer(db, data)
+    customer = db.get(Customer, customer_id)
+    customer_name_snapshot = data.customer_name.strip() if data.customer_name else (customer.full_name if customer else None)
+    customer_phone_snapshot = data.phone or (customer.phone if customer else None)
 
     # Conflict safeguard: lock any active booking for same hall/date/slot
     existing = db.execute(
@@ -128,7 +137,7 @@ def create_booking(db: Session, data, created_by: uuid.UUID) -> Booking:
     total_price = hall_price + guest_amount + refreshment_amount + hall_type_amount
 
     # Advance default
-    advance_percent = Decimal(_get_setting(db, "default_advance_percent", "50"))
+    advance_percent = _decimal_setting(db, "default_advance_percent", "50")
     advance_amount = data.advance_amount if data.advance_amount is not None else (total_price * advance_percent / 100)
     if advance_amount < 0:
         advance_amount = Decimal("0")
@@ -141,6 +150,8 @@ def create_booking(db: Session, data, created_by: uuid.UUID) -> Booking:
         db,
         booking_code=booking_code,
         customer_id=customer_id,
+        customer_name=customer_name_snapshot,
+        customer_phone=customer_phone_snapshot,
         hall_id=hall.id,
         event_type=data.event_type,
         event_date=data.event_date,

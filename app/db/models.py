@@ -129,6 +129,8 @@ class Booking(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
     booking_code: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
     customer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("customers.id", ondelete="RESTRICT"), nullable=False)
+    customer_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    customer_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     hall_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("halls.id", ondelete="RESTRICT"), nullable=False)
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
     event_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
