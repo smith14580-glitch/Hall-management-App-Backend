@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.deps import require_role
@@ -53,6 +53,15 @@ def dashboard_revenue_endpoint(
 
 router_settings = APIRouter(prefix="/settings", tags=["settings"])
 
+NUMERIC_SETTING_KEYS = {
+    "addon_refreshment_water_per_guest",
+    "addon_refreshment_juice_per_guest",
+    "addon_refreshment_both_per_guest",
+    "addon_ac_price",
+    "addon_non_ac_price",
+    "guest_price_per_guest",
+}
+
 
 @router_settings.get("", response_model=dict)
 def list_settings_endpoint(
@@ -72,5 +81,18 @@ def update_setting_endpoint(
     db: Session = Depends(get_db),
     user: User = Depends(require_role("super_admin")),
 ):
+    if key in NUMERIC_SETTING_KEYS:
+        try:
+            amount = float(body.value)
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "VALIDATION_ERROR", "message": f"{key} must be a number"},
+            )
+        if amount < 0:
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "VALIDATION_ERROR", "message": f"{key} must be >= 0"},
+            )
     r = set_setting(db, key, body.value, user.id)
     return {"success": True, "data": {"key": r.key, "value": r.value}, "message": "Setting updated"}

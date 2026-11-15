@@ -1,6 +1,7 @@
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal
 from pydantic import BaseModel, Field, ConfigDict
 
 
@@ -17,6 +18,16 @@ class BookingCreate(BaseModel):
     tables_required: int = Field(gt=0)
     special_instructions: str | None = None
     advance_amount: Decimal | None = None
+    refreshment_type: Literal["none", "water", "juice", "both", "custom"] = "none"
+    refreshment_custom_name: str | None = Field(default=None, max_length=100)
+    refreshment_guests: int | None = Field(default=None, ge=0)
+    refreshment_rate: Decimal | None = Field(default=None, ge=0)
+    refreshment_amount: Decimal | None = Field(default=None, ge=0)
+    hall_type: Literal["ac", "non_ac"] = "ac"
+    hall_type_rate: Decimal | None = Field(default=None, ge=0)
+    hall_type_amount: Decimal | None = Field(default=None, ge=0)
+    guest_rate: Decimal | None = Field(default=None, ge=0)
+    guest_amount: Decimal | None = Field(default=None, ge=0)
 
 
 class BookingOut(BaseModel):
@@ -30,6 +41,16 @@ class BookingOut(BaseModel):
     guest_count: int
     tables_required: int
     special_instructions: str | None
+    refreshment_type: str
+    refreshment_custom_name: str | None
+    refreshment_guests: int | None
+    refreshment_rate: Decimal | None
+    refreshment_amount: Decimal
+    hall_type: str
+    hall_type_rate: Decimal | None
+    hall_type_amount: Decimal
+    guest_rate: Decimal
+    guest_amount: Decimal
     total_price: Decimal
     advance_amount: Decimal
     amount_paid: Decimal

@@ -136,6 +136,16 @@ class Booking(Base):
     guest_count: Mapped[int] = mapped_column(Integer, nullable=False)
     tables_required: Mapped[int] = mapped_column(Integer, nullable=False)
     special_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    refreshment_type: Mapped[str] = mapped_column(String(20), nullable=False, default="none", server_default="none")
+    refreshment_custom_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    refreshment_guests: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    refreshment_rate: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    refreshment_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0, server_default="0")
+    hall_type: Mapped[str] = mapped_column(String(10), nullable=False, default="ac", server_default="ac")
+    hall_type_rate: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    hall_type_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0, server_default="0")
+    guest_rate: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0, server_default="0")
+    guest_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0, server_default="0")
     total_price: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     advance_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0)
     amount_paid: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0)
@@ -160,6 +170,8 @@ class Booking(Base):
         CheckConstraint("tables_required > 0", name="ck_bookings_tables_required"),
         CheckConstraint("total_price >= 0", name="ck_bookings_total_price"),
         CheckConstraint("advance_amount >= 0", name="ck_bookings_advance_amount"),
+        CheckConstraint("refreshment_type IN ('none','water','juice','both','custom')", name="ck_bookings_refreshment_type"),
+        CheckConstraint("hall_type IN ('ac','non_ac')", name="ck_bookings_hall_type"),
         CheckConstraint("payment_status IN ('unpaid','partially_paid','fully_paid')", name="ck_bookings_payment_status"),
         CheckConstraint("status IN ('pending','confirmed','cancelled','completed')", name="ck_bookings_status"),
     )

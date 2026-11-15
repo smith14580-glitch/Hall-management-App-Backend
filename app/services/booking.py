@@ -1,6 +1,6 @@
 import uuid
 from datetime import date, datetime, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from fastapi import HTTPException
 from sqlalchemy import select, func
@@ -18,6 +18,14 @@ def _get_setting(db: Session, key: str, default: str) -> str:
     return row.value if row else default
 
 
+def _decimal_setting(db: Session, key: str, default: str) -> Decimal:
+    raw = _get_setting(db, key, default)
+    try:
+        return Decimal(str(raw))
+    except (InvalidOperation, ValueError):
+        return Decimal(str(default))
+
+
 def _next_booking_code(db: Session, event_date: date) -> str:
     year = event_date.year
     count = db.execute(
@@ -32,7 +40,9 @@ def _hall_price(db: Session, hall_id: uuid.UUID, slot: str) -> Decimal:
     hall = db.get(Hall, hall_id)
     if not hall:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Hall not found"})
-    return Decimal(str(hall.day_price if slot == "day" else hall.night_price))
+    fallback = hall.day_price if slot == "day" else hall.night_price
+    key = "hall_day_price" if slot == "day" else "hall_night_price"
+    return _decimal_setting(db, key, str(fallback))
 
 
 def _resolve_customer(db: Session, data) -> uuid.UUID:
@@ -78,8 +88,44 @@ def create_booking(db: Session, data, created_by: uuid.UUID) -> Booking:
     if existing:
         raise conflict("BOOKING_CONFLICT", "This date and slot are already booked.")
 
-    # Snapshot price
-    total_price = Decimal(str(hall.day_price if data.slot == "day" else hall.night_price))
+    # Snapshot hall price (settings value, falling back to the hall record)
+    hall_price = _hall_price(db, hall.id, data.slot)
+
+    # Guest pricing (per guest)
+    guest_rate = _decimal_setting(db, "guest_price_per_guest", "0")
+    guest_amount = Decimal(str(data.guest_count)) * guest_rate
+
+    # Refreshment (per guest, option-based; custom rate comes from the request)
+    refreshment_type = data.refreshment_type or "none"
+    refreshment_custom_name = None
+    refreshment_guests = 0
+    refreshment_rate = Decimal("0")
+    if refreshment_type != "none":
+        refreshment_guests = int(data.refreshment_guests or 0)
+        rate_key = {
+            "water": "addon_refreshment_water_per_guest",
+            "juice": "addon_refreshment_juice_per_guest",
+            "both": "addon_refreshment_both_per_guest",
+        }.get(refreshment_type)
+        if rate_key:
+            refreshment_rate = _decimal_setting(db, rate_key, "0")
+        elif refreshment_type == "custom":
+            refreshment_rate = data.refreshment_rate if data.refreshment_rate is not None else Decimal("0")
+            if refreshment_rate < 0:
+                refreshment_rate = Decimal("0")
+            refreshment_custom_name = data.refreshment_custom_name
+    refreshment_amount = Decimal(refreshment_guests) * refreshment_rate
+
+    # Hall type (flat per event)
+    hall_type = data.hall_type or "ac"
+    hall_type_rate = _decimal_setting(
+        db,
+        "addon_ac_price" if hall_type == "ac" else "addon_non_ac_price",
+        "20000" if hall_type == "ac" else "0",
+    )
+    hall_type_amount = hall_type_rate
+
+    total_price = hall_price + guest_amount + refreshment_amount + hall_type_amount
 
     # Advance default
     advance_percent = Decimal(_get_setting(db, "default_advance_percent", "50"))
@@ -102,6 +148,16 @@ def create_booking(db: Session, data, created_by: uuid.UUID) -> Booking:
         guest_count=data.guest_count,
         tables_required=data.tables_required,
         special_instructions=data.special_instructions,
+        refreshment_type=refreshment_type,
+        refreshment_custom_name=refreshment_custom_name,
+        refreshment_guests=refreshment_guests,
+        refreshment_rate=refreshment_rate,
+        refreshment_amount=refreshment_amount,
+        hall_type=hall_type,
+        hall_type_rate=hall_type_rate,
+        hall_type_amount=hall_type_amount,
+        guest_rate=guest_rate,
+        guest_amount=guest_amount,
         total_price=total_price,
         advance_amount=advance_amount,
         amount_paid=Decimal("0"),
