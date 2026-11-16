@@ -52,6 +52,36 @@ def activate_employee(db: Session, employee_id: uuid.UUID) -> Optional[Employee]
     return e
 
 
+def delete_employee(db: Session, employee_id: uuid.UUID, force: bool = False) -> Optional[Employee]:
+    e = db.get(Employee, employee_id)
+    if not e:
+        return None
+    from app.db.models import Attendance, SalaryRecord, User
+    from sqlalchemy import delete
+
+    attendance_count = db.execute(
+        select(func.count()).select_from(Attendance).where(Attendance.employee_id == employee_id)
+    ).scalar() or 0
+    salary_count = db.execute(
+        select(func.count()).select_from(SalaryRecord).where(SalaryRecord.employee_id == employee_id)
+    ).scalar() or 0
+
+    if (attendance_count or salary_count) and not force:
+        raise ValueError(
+            "Employee has attendance/salary records — force delete karo ya deactivate use karo."
+        )
+    if force:
+        db.execute(delete(Attendance).where(Attendance.employee_id == employee_id))
+        db.execute(delete(SalaryRecord).where(SalaryRecord.employee_id == employee_id))
+        if e.user_id:
+            user = db.get(User, e.user_id)
+            if user is not None:
+                db.delete(user)
+    db.delete(e)
+    db.commit()
+    return e
+
+
 def list_employees(db: Session, skip: int = 0, limit: int = 100, search: Optional[str] = None, role: Optional[str] = None, is_active: Optional[bool] = None) -> Tuple[list[Employee], int]:
     q = select(Employee)
     if search:

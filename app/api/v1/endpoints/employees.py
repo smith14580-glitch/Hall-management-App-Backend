@@ -8,7 +8,7 @@ from app.db.session import get_db
 from app.db.models import User, SalaryRecord
 from app.schemas.employee import EmployeeCreate, EmployeeOut
 from app.schemas.salary import SalaryCreate
-from app.services.employee import create_employee_svc, get_employee_svc, list_employees_svc, deactivate_employee_svc, activate_employee_svc
+from app.services.employee import create_employee_svc, get_employee_svc, list_employees_svc, deactivate_employee_svc, activate_employee_svc, delete_employee_svc
 
 router = APIRouter(prefix="/employees", tags=["employees"])
 
@@ -104,6 +104,17 @@ def deactivate_employee_endpoint(
 ):
     e = deactivate_employee_svc(db, employee_id)
     return {"success": True, "data": EmployeeOut.model_validate(e), "message": "Employee deactivated"}
+
+@router.delete("/{employee_id}", response_model=dict)
+def delete_employee_endpoint(
+    employee_id: UUID,
+    force: bool = Query(False),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("super_admin")),
+):
+    delete_employee_svc(db, employee_id, force=force)
+    return {"success": True, "data": None, "message": "Employee deleted"}
+
 
 @router.post("/{employee_id}/activate", response_model=dict)
 def activate_employee_endpoint(

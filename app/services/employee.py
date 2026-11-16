@@ -59,5 +59,14 @@ def activate_employee_svc(db: Session, employee_id: UUID) -> Employee:
     return e
 
 
+def delete_employee_svc(db: Session, employee_id: UUID, force: bool = False) -> None:
+    try:
+        employee_crud.delete_employee(db, employee_id, force=force)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail={"code": "EMPLOYEE_IN_USE", "message": str(e)})
+    except Exception as e:
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": str(e)})
+
+
 def list_employees_svc(db: Session, skip: int, limit: int, search: str | None, role: str | None, is_active: bool | None):
     return employee_crud.list_employees(db, skip, limit, search, role, is_active)
