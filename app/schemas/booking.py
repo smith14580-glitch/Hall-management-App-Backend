@@ -10,6 +10,7 @@ class BookingCreate(BaseModel):
     customer_id: uuid.UUID | None = None
     customer_name: str | None = Field(default=None, max_length=120)
     phone: str | None = Field(default=None, max_length=20)
+    address: str | None = Field(default=None, max_length=255)
     hall_id: uuid.UUID | None = None  # optional: defaults to the single hall
     event_type: str = Field(min_length=1, max_length=50)
     event_date: date

@@ -39,6 +39,7 @@ def _booking_dict(b: Booking) -> dict:
         "customer_id": str(b.customer_id),
         "customer_name": b.customer_name or (cust.full_name if cust else None),
         "customer_phone": b.customer_phone or (cust.phone if cust else None),
+        "customer_address": (cust.address if cust else None),
         "hall_id": str(b.hall_id), "hall_name": hall.name if hall else None,
         "created_by": str(b.created_by),
         "cancelled_reason": b.cancelled_reason,

@@ -56,14 +56,17 @@ def _resolve_customer(db: Session, data) -> uuid.UUID:
         raise HTTPException(status_code=422, detail={"code": "VALIDATION_ERROR", "message": "customer_id or customer_name + phone required"})
     cust = db.execute(select(Customer).where(Customer.phone == data.phone)).scalar_one_or_none()
     if cust:
-        # Keep the customer record in sync with the name the manager typed.
+        # Keep the customer record in sync with the name/address the manager typed.
         typed_name = (data.customer_name or "").strip()
         if typed_name and typed_name != cust.full_name:
             cust.full_name = typed_name
-            db.add(cust)
-            db.flush()
+        typed_address = (data.address or "").strip()
+        if typed_address and typed_address != (cust.address or ""):
+            cust.address = typed_address
+        db.add(cust)
+        db.flush()
         return cust.id
-    cust = Customer(full_name=data.customer_name or data.phone, phone=data.phone)
+    cust = Customer(full_name=data.customer_name or data.phone, phone=data.phone, address=(data.address or "").strip() or None)
     db.add(cust)
     db.flush()
     return cust.id
