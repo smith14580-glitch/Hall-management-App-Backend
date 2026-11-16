@@ -52,6 +52,7 @@ def dashboard_revenue_endpoint(
 
 
 router_settings = APIRouter(prefix="/settings", tags=["settings"])
+router_maintenance = APIRouter(prefix="/maintenance", tags=["maintenance"])
 
 NUMERIC_SETTING_KEYS = {
     "addon_refreshment_water_per_guest",
@@ -72,6 +73,44 @@ def list_settings_endpoint(
     return {"success": True, "data": [
         {"key": r.key, "value": r.value, "description": r.description} for r in rows
     ]}
+
+
+@router_maintenance.delete("/demo-data", response_model=dict)
+def reset_demo_data_endpoint(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("super_admin")),
+):
+    from app.db.models import (
+        Attendance,
+        Booking,
+        Customer,
+        EventTableAllocation,
+        Expense,
+        Payment,
+        Quotation,
+        Refund,
+        Table,
+    )
+    from sqlalchemy import delete
+
+    # Delete in dependency order.
+    db.execute(delete(EventTableAllocation))
+    db.execute(delete(Refund))
+    db.execute(delete(Payment))
+    db.execute(delete(Expense))
+    db.execute(delete(Attendance))
+    db.execute(delete(Booking))
+    db.execute(delete(Quotation))
+    db.execute(delete(Table))
+    db.execute(delete(Customer))
+    db.commit()
+
+    return {
+        "success": True,
+        "data": {
+            "message": "Demo data cleared. Settings, halls and users retained.",
+        },
+    }
 
 
 @router_settings.patch("/{key}", response_model=dict)
