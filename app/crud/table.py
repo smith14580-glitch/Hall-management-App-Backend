@@ -22,7 +22,7 @@ def create_table(db: Session, hall_id: uuid.UUID, table_number: str, capacity: i
     return t
 
 
-def delete_table(db: Session, table_id: uuid.UUID) -> Optional[Table]:
+def delete_table(db: Session, table_id: uuid.UUID, force: bool = False) -> Optional[Table]:
     t = db.get(Table, table_id)
     if not t:
         return None
@@ -31,8 +31,16 @@ def delete_table(db: Session, table_id: uuid.UUID) -> Optional[Table]:
         .where(EventTableAllocation.table_id == table_id)
         .limit(1)
     ).scalar_one_or_none()
+    if used and not force:
+        raise ValueError(
+            "Table has allocation history — force delete karo ya deactivate use karo."
+        )
     if used:
-        raise ValueError("Table has allocation history — deactivate it instead of deleting.")
+        db.execute(
+            EventTableAllocation.__table__.delete().where(
+                EventTableAllocation.table_id == table_id
+            )
+        )
     db.delete(t)
     db.commit()
     return t

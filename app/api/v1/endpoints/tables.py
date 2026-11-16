@@ -97,10 +97,11 @@ def create_table_endpoint(
 @router.delete("/{table_id}", response_model=dict)
 def delete_table_endpoint(
     table_id: UUID,
+    force: bool = Query(False),
     db: Session = Depends(get_db),
     user: User = Depends(require_role("super_admin")),
 ):
-    delete_table_svc(db, table_id)
+    delete_table_svc(db, table_id, force=force)
     return {"success": True, "data": {"id": str(table_id)}, "message": "Table deleted"}
 
 
