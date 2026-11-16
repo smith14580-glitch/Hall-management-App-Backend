@@ -22,6 +22,22 @@ def create_table(db: Session, hall_id: uuid.UUID, table_number: str, capacity: i
     return t
 
 
+def delete_table(db: Session, table_id: uuid.UUID) -> Optional[Table]:
+    t = db.get(Table, table_id)
+    if not t:
+        return None
+    used = db.execute(
+        select(EventTableAllocation.id)
+        .where(EventTableAllocation.table_id == table_id)
+        .limit(1)
+    ).scalar_one_or_none()
+    if used:
+        raise ValueError("Table has allocation history — deactivate it instead of deleting.")
+    db.delete(t)
+    db.commit()
+    return t
+
+
 def deactivate_table(db: Session, table_id: uuid.UUID) -> Optional[Table]:
     t = db.get(Table, table_id)
     if not t:

@@ -15,6 +15,16 @@ def create_table_svc(db: Session, hall_id: UUID, table_number: str, capacity: in
     return table_crud.create_table(db, hall_id, table_number, capacity)
 
 
+def delete_table_svc(db: Session, table_id: UUID):
+    try:
+        t = table_crud.delete_table(db, table_id)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail={"code": "TABLE_IN_USE", "message": str(e)})
+    if not t:
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Table not found"})
+    return t
+
+
 def deactivate_table_svc(db: Session, table_id: UUID):
     t = table_crud.deactivate_table(db, table_id)
     if not t:

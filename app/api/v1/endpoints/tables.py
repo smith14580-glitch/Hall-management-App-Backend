@@ -11,6 +11,7 @@ from app.schemas.table import TableCreate
 from app.services.table import (
     list_tables_svc,
     create_table_svc,
+    delete_table_svc,
     deactivate_table_svc,
     activate_table_svc,
     table_utilization_svc,
@@ -92,6 +93,16 @@ def create_table_endpoint(
         hall_id = hall.id
     t = create_table_svc(db, hall_id, body.table_number, body.capacity)
     return {"success": True, "data": _table_dict(t), "message": "Table created"}
+
+@router.delete("/{table_id}", response_model=dict)
+def delete_table_endpoint(
+    table_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("super_admin")),
+):
+    delete_table_svc(db, table_id)
+    return {"success": True, "data": {"id": str(table_id)}, "message": "Table deleted"}
+
 
 @router.post("/{table_id}/deactivate", response_model=dict)
 def deactivate_table_endpoint(
