@@ -1,3 +1,5 @@
+import calendar
+from datetime import date
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -11,6 +13,7 @@ from app.services.table import (
     create_table_svc,
     deactivate_table_svc,
     activate_table_svc,
+    table_utilization_svc,
 )
 
 router = APIRouter(prefix="/tables", tags=["tables"])
@@ -39,6 +42,39 @@ def list_tables_endpoint(
         hall_id = hall.id
     rows = list_tables_svc(db, hall_id)
     return {"success": True, "data": [_table_dict(t) for t in rows]}
+
+@router.get("/utilization", response_model=dict)
+def table_utilization_endpoint(
+    month: str | None = Query(None, pattern=r"^\d{4}-\d{2}$"),
+    hall_id: UUID | None = Query(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("super_admin")),
+):
+    from sqlalchemy import select
+    from app.db.models import Hall
+
+    if hall_id is None:
+        hall = db.execute(select(Hall).where(Hall.is_active == True).limit(1)).scalar_one_or_none()  # noqa: E712
+        if not hall:
+            return {"success": True, "data": {"month": month, "days": 0, "total_slots": 0, "booked_events": 0, "tables": []}}
+        hall_id = hall.id
+
+    target = month or date.today().strftime("%Y-%m")
+    year, month_num = int(target[:4]), int(target[5:7])
+    first = date(year, month_num, 1)
+    last = date(year, month_num, calendar.monthrange(year, month_num)[1])
+    rows = table_utilization_svc(db, hall_id, first, last)
+    return {
+        "success": True,
+        "data": {
+            "month": target,
+            "days": (last - first).days + 1,
+            "total_slots": ((last - first).days + 1) * 2,
+            "booked_events": sum(r["booked_events"] for r in rows),
+            "tables": rows,
+        },
+    }
+
 
 @router.post("", response_model=dict)
 def create_table_endpoint(

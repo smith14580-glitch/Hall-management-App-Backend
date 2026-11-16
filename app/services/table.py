@@ -1,3 +1,4 @@
+from datetime import date
 from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -25,6 +26,10 @@ def activate_table_svc(db: Session, table_id: UUID):
     if not t:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Table not found"})
     return t
+
+
+def table_utilization_svc(db: Session, hall_id: UUID, date_from: date, date_to: date):
+    return table_crud.table_utilization(db, hall_id, date_from, date_to)
 
 
 def get_allocations_svc(db: Session, booking_id: UUID):
