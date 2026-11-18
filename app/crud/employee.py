@@ -68,7 +68,7 @@ def delete_employee(db: Session, employee_id: uuid.UUID, force: bool = False) ->
 
     if (attendance_count or salary_count) and not force:
         raise ValueError(
-            "Employee has attendance/salary records — force delete karo ya deactivate use karo."
+            "Employee has attendance/salary records — use force delete or deactivate instead."
         )
     if force:
         db.execute(delete(Attendance).where(Attendance.employee_id == employee_id))

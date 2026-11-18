@@ -33,7 +33,7 @@ def delete_table(db: Session, table_id: uuid.UUID, force: bool = False) -> Optio
     ).scalar_one_or_none()
     if used and not force:
         raise ValueError(
-            "Table has allocation history — force delete karo ya deactivate use karo."
+            "Table has allocation history — use force delete or deactivate instead."
         )
     if used:
         db.execute(

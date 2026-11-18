@@ -77,16 +77,16 @@ def scan_attendance_endpoint(
             return {
                 "success": True,
                 "data": _att_dict(existing, emp),
-                "message": "Aaj ki attendance mukammal hai (check-in aur check-out dono ho chuke).",
+                "message": "Attendance for today is already complete (both check-in and check-out recorded).",
                 "action": "complete",
             }
 
     if action == "check-in":
         row = check_in_svc(db, emp.id, today, "scan", user)
-        message = f"{emp.full_name} — check-in ho gaya."
+        message = f"{emp.full_name} — check-in recorded."
     else:
         row = check_out_svc(db, emp.id, today, user)
-        message = f"{emp.full_name} — check-out ho gaya."
+        message = f"{emp.full_name} — check-out recorded."
 
     return {"success": True, "data": _att_dict(row, emp), "message": message, "action": action}
 
