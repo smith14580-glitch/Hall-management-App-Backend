@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session
 from app.core.deps import require_role
 from app.db.session import get_db
 from app.db.models import User, SalaryRecord
-from app.schemas.employee import EmployeeCreate, EmployeeOut
+from app.schemas.employee import EmployeeCreate, EmployeeOut, ResetPasswordRequest
 from app.schemas.salary import SalaryCreate
-from app.services.employee import create_employee_svc, get_employee_svc, list_employees_svc, deactivate_employee_svc, activate_employee_svc, delete_employee_svc
+from app.services.employee import create_employee_svc, get_employee_svc, list_employees_svc, deactivate_employee_svc, activate_employee_svc, delete_employee_svc, reset_employee_password_svc
 
 router = APIRouter(prefix="/employees", tags=["employees"])
 
@@ -95,6 +95,17 @@ def update_employee_endpoint(
     db.commit()
     db.refresh(e)
     return {"success": True, "data": EmployeeOut.model_validate(e), "message": "Employee updated"}
+
+@router.post("/{employee_id}/reset-password", response_model=dict)
+def reset_employee_password_endpoint(
+    employee_id: UUID,
+    body: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("super_admin")),
+):
+    reset_employee_password_svc(db, employee_id, body.new_password)
+    return {"success": True, "data": None, "message": "Password reset"}
+
 
 @router.post("/{employee_id}/deactivate", response_model=dict)
 def deactivate_employee_endpoint(

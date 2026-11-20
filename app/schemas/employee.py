@@ -1,4 +1,6 @@
-from pydantic import BaseModel, Field, ConfigDict
+import re
+
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from uuid import UUID
 from datetime import date, time
 
@@ -13,6 +15,17 @@ class EmployeeCreate(BaseModel):
     hire_date: date | None = None
     duty_start_time: time | None = None
     monthly_salary: float | None = Field(default=None, ge=0)
+
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str = Field(min_length=8, max_length=72)
+
+    @field_validator("new_password")
+    @classmethod
+    def password_must_have_letter_and_number(cls, value: str) -> str:
+        if not re.search(r"[A-Za-z]", value) or not re.search(r"\d", value):
+            raise ValueError("Password must contain at least one letter and one number")
+        return value
 
 
 class EmployeeOut(BaseModel):

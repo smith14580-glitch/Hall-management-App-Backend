@@ -38,6 +38,28 @@ def create_employee_svc(db: Session, data: EmployeeCreate) -> Employee:
     return e
 
 
+def reset_employee_password_svc(db: Session, employee_id: UUID, new_password: str) -> None:
+    """Manager-assisted password reset for an employee's linked login account."""
+    employee = get_employee_svc(db, employee_id)
+    if employee.user_id is None:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "NOT_FOUND",
+                "message": "This employee has no login account. Add a password to the employee first.",
+            },
+        )
+    account = db.get(User, employee.user_id)
+    if account is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "NOT_FOUND", "message": "Linked login account not found"},
+        )
+    account.password_hash = hash_password(new_password)
+    db.add(account)
+    db.commit()
+
+
 def get_employee_svc(db: Session, employee_id: UUID) -> Employee:
     e = employee_crud.get_employee(db, employee_id)
     if not e:
